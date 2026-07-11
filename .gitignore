@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+build/
+__pycache__/
+*.py[cod]
+*.class
+.venv/
+.env
+backend/storage/uploads/
+backend/storage/processed/
+sivi.db
+.DS_Store
