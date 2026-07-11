@@ -13,7 +13,19 @@ from app.processing.common import ProcessResult
 # memory on top of its own weights, which reliably OOMs on memory-constrained
 # hosts (e.g. a 512MB deploy tier). u2netp trades some segmentation precision
 # for a much smaller session, which is the tradeoff that matters here.
-_SESSION = new_session("u2netp")
+#
+# Created lazily (on first request, not at import) so its model download can't
+# block the app's own startup/port-binding if that download is ever slow — a
+# hang here previously took the whole deploy down since nothing else could
+# start serving until this finished.
+_session = None
+
+
+def _get_session():
+    global _session
+    if _session is None:
+        _session = new_session("u2netp")
+    return _session
 
 # Downscaling before rembg cuts both its processing memory (proportional to
 # pixel count) and latency; subject silhouettes don't need original photo
@@ -36,7 +48,7 @@ def _downscaled_bytes(path: Path) -> bytes:
 def process(original_path: Path, output_dir: Path) -> ProcessResult:
     """Isolate the subject from its background using rembg (u2netp)."""
     input_bytes = _downscaled_bytes(original_path)
-    output_bytes = remove(input_bytes, session=_SESSION)
+    output_bytes = remove(input_bytes, session=_get_session())
     del input_bytes
     gc.collect()
 
