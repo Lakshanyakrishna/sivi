@@ -7,12 +7,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.mesh import dieline as mesh_dieline
-from app.mesh import flat_graphic as mesh_flat_graphic
-from app.mesh import real_object as mesh_real_object
 from app.mesh.common import rasterize_artwork
 from app.models import Asset
-from app.processing import dieline, flat_graphic, real_object
 from app.schemas import AssetOut, SetRouteIn
 from app.storage import UPLOAD_DIR, processed_dir_for, save_upload
 
@@ -138,13 +134,25 @@ def process_asset(asset_id: str, db: Session = Depends(get_db)) -> AssetOut:
     output_dir = processed_dir_for(asset.id)
 
     try:
+        # Each route's processing module pulls in a distinct, heavy dependency
+        # stack (opencv/rembg/onnxruntime, or opencv/scikit-image, or
+        # opencv/shapely/networkx) — importing all three eagerly at app startup
+        # was pushing baseline memory to ~480MB/512MB on a constrained deploy
+        # tier before a single request ran. Importing only the route actually
+        # used keeps a given container from paying for engines it never touches.
         if asset.route == "real_object":
             if asset.file_kind not in ("png", "jpg"):
                 raise ValueError("Real Object pipeline requires a PNG or JPG photo")
+            from app.processing import real_object
+
             result = real_object.process(original_path, output_dir)
         elif asset.route == "flat_graphic":
+            from app.processing import flat_graphic
+
             result = flat_graphic.process(original_path, asset.file_kind, output_dir)
         elif asset.route == "packaging_dieline":
+            from app.processing import dieline
+
             result = dieline.process(original_path, asset.file_kind, output_dir)
         else:
             raise ValueError(f"Unknown route '{asset.route}'")
@@ -195,12 +203,18 @@ def generate_mesh(asset_id: str, db: Session = Depends(get_db)) -> AssetOut:
 
     try:
         if asset.route == "real_object":
+            from app.mesh import real_object as mesh_real_object
+
             cutout_path = output_dir / asset.processed_preview_filename
             result = mesh_real_object.generate(cutout_path, output_dir)
         elif asset.route == "flat_graphic":
+            from app.mesh import flat_graphic as mesh_flat_graphic
+
             original_path = UPLOAD_DIR / asset.stored_filename
             result = mesh_flat_graphic.generate(features, original_path, output_dir)
         elif asset.route == "packaging_dieline":
+            from app.mesh import dieline as mesh_dieline
+
             original_path = UPLOAD_DIR / asset.stored_filename
             result = mesh_dieline.generate(features, original_path, output_dir)
         else:
