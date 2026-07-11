@@ -22,6 +22,11 @@ const ROUTE_MAP: Record<string, PipelineRoute> = {
   packaging_dieline: "packaging_dieline",
 };
 
+// The Real Object pipeline (rembg/onnxruntime) needs more RAM than this
+// deployment's backend host provides and can crash it — hidden here, not
+// removed, so it comes back the moment the backend moves to a bigger plan.
+const REAL_OBJECT_ENABLED = process.env.NEXT_PUBLIC_ENABLE_REAL_OBJECT !== "false";
+
 export default function Home() {
   const [asset, setAsset] = useState<Asset | null>(null);
   const [route, setRoute] = useState<PipelineRoute>("flat_graphic");
@@ -104,7 +109,9 @@ export default function Home() {
               onValueChange={(v) => setRoute(v as PipelineRoute)}
             >
               <TabsList>
-                <TabsTrigger value="real_object">Real Object</TabsTrigger>
+                {REAL_OBJECT_ENABLED && (
+                  <TabsTrigger value="real_object">Real Object</TabsTrigger>
+                )}
                 <TabsTrigger value="flat_graphic">Flat Graphic</TabsTrigger>
                 <TabsTrigger value="packaging_dieline">
                   Packaging Dieline
