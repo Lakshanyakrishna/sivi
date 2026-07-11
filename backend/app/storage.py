@@ -1,3 +1,4 @@
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -9,7 +10,7 @@ from PIL import Image
 from pypdf import PdfReader
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-STORAGE_DIR = BASE_DIR / "storage"
+STORAGE_DIR = Path(os.environ["STORAGE_DIR"]) if os.environ.get("STORAGE_DIR") else BASE_DIR / "storage"
 UPLOAD_DIR = STORAGE_DIR / "uploads"
 PROCESSED_DIR = STORAGE_DIR / "processed"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)

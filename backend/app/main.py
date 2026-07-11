@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,9 +12,16 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Sivi API", description="2D to 3D conversion pipeline: ingestion & routing")
 
+# Always allow localhost (dev); ALLOWED_ORIGIN_REGEX adds the deployed frontend's
+# origin in production (e.g. r"https://sivi.*\.vercel\.app").
+_extra_origin_regex = os.environ.get("ALLOWED_ORIGIN_REGEX")
+_origin_regex = r"http://(localhost|127\.0\.0\.1):\d+"
+if _extra_origin_regex:
+    _origin_regex = f"({_origin_regex})|({_extra_origin_regex})"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origin_regex=_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
